@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kakeibo Bridge</title>
+<meta name="theme-color" content="#1F3A5F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Kakeibo">
+<meta name="description" content="Local-first cash and digital spending ledger with OneDrive backup.">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" href="./icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700;900&display=swap">
+<style>
+  :root{
+    --bg:#F5F7FA; --surface:#FFFFFF; --surface-2:#EEF1F6; --line:#DDE3EC;
+    --ink:#1B2430; --ink-soft:#5B6675; --ink-faint:#8B95A5;
+    --accent:#26456F; --accent-strong:#16304F; --accent-wash:#E7EDF6;
+    --cta:#C1502E; --cta-strong:#9E3F22; --cta-wash:#F7E7E1;
+    --cash:#C1502E; --zaim:#26456F; --paypay:#C23A54; --point:#A97417;
+    --good:#2F7A52; --bad:#B23B3B;
+    --shadow: 0 1px 2px rgba(20,30,50,.06), 0 8px 24px rgba(20,30,50,.07);
+    --font-display:'Zen Old Mincho','Hiragino Mincho ProN','Noto Serif JP',serif;
+    --font-body:'Zen Kaku Gothic New','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0E131B; --surface:#171E28; --surface-2:#1F2733; --line:#2B3542;
+      --ink:#E7ECF2; --ink-soft:#A6B1C0; --ink-faint:#6E7A8A;
+      --accent:#7FA0CC; --accent-strong:#9CBAE0; --accent-wash:#1D2C3F;
+      --cta:#E0835F; --cta-strong:#F0A180; --cta-wash:#3A241D;
+      --cash:#E0835F; --zaim:#7FA0CC; --paypay:#E27E93; --point:#D9A94D;
+      --good:#5FAE81; --bad:#E0837D;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0E131B; --surface:#171E28; --surface-2:#1F2733; --line:#2B3542;
+    --ink:#E7ECF2; --ink-soft:#A6B1C0; --ink-faint:#6E7A8A;
+    --accent:#7FA0CC; --accent-strong:#9CBAE0; --accent-wash:#1D2C3F;
+    --cta:#E0835F; --cta-strong:#F0A180; --cta-wash:#3A241D;
+    --cash:#E0835F; --zaim:#7FA0CC; --paypay:#E27E93; --point:#D9A94D;
+    --good:#5FAE81; --bad:#E0837D;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--ink); font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased; font-variant-numeric:tabular-nums;
+  }
+  button, input, select{font-family:inherit;}
+  button{cursor:pointer;}
+  :focus-visible{outline:2px solid var(--accent-strong); outline-offset:2px;}
+
+  .shell{
+    max-width:480px; min-height:100vh; margin:0 auto; background:var(--surface);
+    display:flex; flex-direction:column; position:relative; box-shadow:var(--shadow);
+  }
+  @media (min-width:520px){
+    body{padding-block:24px;}
+    .shell{min-height:calc(100vh - 48px); border-radius:20px; overflow:hidden;}
+  }
+
+  header.top{
+    padding:18px 20px 14px; border-bottom:1px solid var(--line);
+    display:flex; align-items:flex-start; justify-content:space-between; gap:12px; flex-shrink:0;
+  }
+  header.top .brand{ font-family:var(--font-display); font-weight:700; font-size:1.28rem; color:var(--accent-strong); }
+  header.top .brand small{
+    display:block; font-family:var(--font-body); font-weight:500; font-size:.66rem;
+    letter-spacing:.12em; text-transform:uppercase; color:var(--ink-faint); margin-top:2px;
+  }
+  header.top .month-total{text-align:right;}
+  header.top .month-total .amt{ font-family:var(--font-display); font-size:1.15rem; font-weight:700; color:var(--ink); display:block; }
+  header.top .month-total .lbl{ font-size:.68rem; color:var(--ink-faint); letter-spacing:.05em; }
+
+  main{ flex:1; overflow-y:auto; padding:18px 20px 100px; }
+  .panel{display:none;}
+  .panel.active{display:block; animation:fade .18s ease-out;}
+  @media (prefers-reduced-motion: reduce){ .panel.active{animation:none;} }
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+  h2.section{ font-family:var(--font-display); font-size:1.02rem; font-weight:700; margin:0 0 12px; color:var(--ink); }
+  p.hint{ font-size:.82rem; color:var(--ink-soft); line-height:1.5; margin:0 0 16px; }
+
+  .amount-display{ display:flex; align-items:baseline; justify-content:center; gap:4px; padding:22px 0 10px; }
+  .amount-display .yen{ font-family:var(--font-display); font-size:1.6rem; color:var(--ink-faint); }
+  .amount-display .val{ font-family:var(--font-display); font-size:2.9rem; font-weight:700; color:var(--ink); min-width:1ch; }
+  .presets{ display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-bottom:16px; }
+  .preset-chip{ border:1px solid var(--line); background:var(--surface-2); color:var(--ink-soft); border-radius:999px; padding:6px 14px; font-size:.8rem; font-weight:500; }
+  .preset-chip:active{background:var(--accent-wash);}
+
+  .keypad{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:18px; }
+  .keypad button{ background:var(--surface-2); border:none; border-radius:12px; padding:16px 0; font-size:1.25rem; font-weight:500; color:var(--ink); }
+  .keypad button:active{background:var(--accent-wash); color:var(--accent-strong);}
+  .keypad button.clear{color:var(--cta-strong); font-size:1rem; font-weight:700;}
+
+  .cat-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:16px; }
+  .cat-chip{
+    border:1.5px solid var(--line); background:var(--surface); border-radius:14px; padding:10px 4px 8px;
+    display:flex; flex-direction:column; align-items:center; gap:3px; font-size:.68rem; color:var(--ink-soft); font-weight:500; line-height:1.15;
+  }
+  .cat-chip .ic{font-size:1.15rem;}
+  .cat-chip.sel{ border-color:var(--accent); background:var(--accent-wash); color:var(--accent-strong); }
+
+  .note-toggle{ background:none; border:none; color:var(--accent); font-size:.8rem; font-weight:500; padding:4px 0; margin-bottom:6px; }
+  .note-row{display:none; margin-bottom:12px;}
+  .note-row.open{display:block;}
+  .note-row input{ width:100%; border:1px solid var(--line); border-radius:10px; padding:10px 12px; font-size:.88rem; background:var(--surface); color:var(--ink); }
+
+  .date-pill{
+    display:inline-flex; align-items:center; gap:6px; background:var(--surface-2); border-radius:999px;
+    padding:5px 12px; font-size:.76rem; color:var(--ink-soft); border:none; margin-bottom:14px;
+  }
+  .date-inline{display:none; margin-bottom:14px;}
+  .date-inline.open{display:block;}
+  .date-inline input{ border:1px solid var(--line); border-radius:10px; padding:8px 10px; font-size:.85rem; background:var(--surface); color:var(--ink); }
+
+  .save-btn{
+    width:100%; background:var(--cta); color:#fff; border:none; border-radius:14px; padding:16px 0;
+    font-size:1.02rem; font-weight:700; letter-spacing:.02em; box-shadow:0 6px 18px rgba(193,80,46,.32);
+  }
+  .save-btn:active{background:var(--cta-strong);}
+  .save-btn:disabled{background:var(--ink-faint); box-shadow:none; opacity:.5;}
+
+  .toast{
+    position:fixed; left:50%; bottom:92px; transform:translateX(-50%) translateY(12px);
+    background:var(--accent-strong); color:#fff; padding:10px 18px; border-radius:999px; font-size:.82rem; font-weight:500;
+    opacity:0; pointer-events:none; transition:opacity .2s ease, transform .2s ease; z-index:60;
+    max-width:calc(100% - 40px); text-align:center;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+
+  .month-nav{ display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:18px; }
+  .month-nav button{ background:var(--surface-2); border:none; width:32px; height:32px; border-radius:50%; color:var(--ink-soft); font-size:1rem; display:flex; align-items:center; justify-content:center; }
+  .month-nav .m-label{ font-family:var(--font-display); font-weight:700; font-size:1rem; min-width:110px; text-align:center; }
+
+  .stat-tile{ background:var(--accent-wash); border-radius:16px; padding:18px 20px; margin-bottom:20px; text-align:center; }
+  .stat-tile .amt{ font-family:var(--font-display); font-size:2.1rem; font-weight:700; color:var(--accent-strong); display:block; }
+  .stat-tile .lbl{ font-size:.74rem; color:var(--ink-soft); letter-spacing:.04em; margin-top:2px; }
+
+  .bar-row{ display:grid; grid-template-columns:74px 1fr auto; align-items:center; gap:10px; margin-bottom:10px; font-size:.8rem; }
+  .bar-row .cat-lbl{color:var(--ink-soft); display:flex; align-items:center; gap:5px;}
+  .bar-track{ height:10px; background:var(--surface-2); border-radius:6px; overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:6px; }
+  .bar-row .amt{text-align:right; font-weight:600; color:var(--ink);}
+
+  .src-bar{ display:flex; height:14px; border-radius:8px; overflow:hidden; margin-bottom:12px; background:var(--surface-2); }
+  .src-legend{ display:flex; flex-wrap:wrap; gap:10px 16px; margin-bottom:22px; }
+  .src-legend .item{ display:flex; align-items:center; gap:6px; font-size:.76rem; color:var(--ink-soft); }
+  .swatch{width:9px; height:9px; border-radius:2px; flex-shrink:0;}
+
+  .empty-state{ text-align:center; padding:36px 12px; color:var(--ink-faint); font-size:.85rem; }
+  .empty-state .glyph{font-size:1.8rem; display:block; margin-bottom:8px;}
+
+  .import-card{ border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:14px; }
+  .import-card .row1{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+  .import-card .src-tag{font-weight:700; font-size:.9rem;}
+  .import-card .desc{font-size:.76rem; color:var(--ink-soft); margin:4px 0 10px;}
+  .file-btn{ display:inline-block; background:var(--surface-2); border:1px dashed var(--line); border-radius:10px; padding:9px 14px; font-size:.8rem; color:var(--accent); font-weight:600; }
+  .file-btn input{display:none;}
+  .encoding-row{display:flex; gap:8px; align-items:center; margin:10px 0; font-size:.74rem; color:var(--ink-soft);}
+  .encoding-row button{ border:1px solid var(--line); background:var(--surface); border-radius:8px; padding:4px 9px; color:var(--ink-soft); font-size:.72rem; }
+  .encoding-row button.sel{border-color:var(--accent); color:var(--accent); background:var(--accent-wash);}
+  table.map-table{width:100%; border-collapse:collapse; font-size:.72rem; margin:10px 0;}
+  table.map-table th, table.map-table td{ border-bottom:1px solid var(--line); padding:6px 4px; text-align:left; white-space:nowrap; max-width:110px; overflow:hidden; text-overflow:ellipsis; }
+  table.map-table select{ font-size:.7rem; border:1px solid var(--line); border-radius:6px; padding:2px 4px; background:var(--surface); color:var(--ink); }
+  .wrap-scroll{overflow-x:auto;}
+  .confirm-btn{ width:100%; background:var(--accent); color:#fff; border:none; border-radius:12px; padding:12px 0; font-size:.88rem; font-weight:700; margin-top:6px; }
+  .confirm-btn:disabled{opacity:.4;}
+
+  .tx-row{ display:flex; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--line); cursor:pointer; }
+  .tx-row .swatch-dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+  .tx-row .mid{flex:1; min-width:0;}
+  .tx-row .mid .top{font-size:.85rem; color:var(--ink); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .tx-row .mid .sub{font-size:.7rem; color:var(--ink-faint); margin-top:1px;}
+  .tx-row .amt{font-weight:700; font-size:.9rem; color:var(--ink); white-space:nowrap;}
+  .tx-edit{display:none; padding:10px 0 14px 18px; border-bottom:1px solid var(--line);}
+  .tx-edit.open{display:block;}
+  .tx-edit .cat-grid{grid-template-columns:repeat(4,1fr); margin-bottom:10px;}
+  .tx-del{ background:none; border:1px solid var(--cta); color:var(--cta-strong); border-radius:8px; padding:6px 12px; font-size:.76rem; font-weight:600; }
+
+  nav.tabs{ position:sticky; bottom:0; display:flex; border-top:1px solid var(--line); background:var(--surface); flex-shrink:0; }
+  nav.tabs button{ flex:1; background:none; border:none; padding:9px 0 11px; display:flex; flex-direction:column; align-items:center; gap:2px; color:var(--ink-faint); font-size:.6rem; font-weight:600; letter-spacing:.01em; }
+  nav.tabs button svg{width:19px; height:19px; stroke:var(--ink-faint); fill:none; stroke-width:1.7;}
+  nav.tabs button.active{color:var(--accent-strong);}
+  nav.tabs button.active svg{stroke:var(--accent-strong);}
+
+  .banner{ background:var(--cta-wash); color:var(--cta-strong); border-radius:10px; padding:10px 12px; font-size:.76rem; margin-bottom:14px; }
+  .banner.good{ background:var(--accent-wash); color:var(--accent-strong); }
+
+  /* settings */
+  .settings-card{ border:1px solid var(--line); border-radius:16px; padding:16px; margin-bottom:16px; }
+  .settings-card h3{ font-family:var(--font-display); font-size:.95rem; margin:0 0 8px; color:var(--ink); }
+  .status-row{ display:flex; align-items:center; gap:8px; margin-bottom:12px; font-size:.82rem; color:var(--ink-soft); }
+  .dot{width:9px; height:9px; border-radius:50%; background:var(--ink-faint); flex-shrink:0;}
+  .dot.on{background:var(--good);}
+  .dot.off{background:var(--ink-faint);}
+  .dot.err{background:var(--bad);}
+  .field-label{ display:block; font-size:.72rem; color:var(--ink-faint); letter-spacing:.05em; text-transform:uppercase; margin-bottom:5px; }
+  .text-field{ width:100%; border:1px solid var(--line); border-radius:10px; padding:9px 11px; font-size:.85rem; background:var(--surface); color:var(--ink); margin-bottom:10px; }
+  .redirect-box{ background:var(--surface-2); border-radius:10px; padding:10px 12px; font-size:.74rem; color:var(--ink-soft); word-break:break-all; margin-bottom:10px; font-family:monospace; }
+  .btn-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .btn-secondary{ background:var(--surface-2); border:1px solid var(--line); color:var(--ink); border-radius:10px; padding:9px 14px; font-size:.8rem; font-weight:600; }
+  .btn-primary{ background:var(--accent); border:none; color:#fff; border-radius:10px; padding:9px 14px; font-size:.8rem; font-weight:700; }
+  .btn-danger{ background:none; border:1px solid var(--bad); color:var(--bad); border-radius:10px; padding:9px 14px; font-size:.8rem; font-weight:600; }
+  .toggle-row{ display:flex; align-items:center; justify-content:space-between; font-size:.82rem; color:var(--ink); margin-top:12px; }
+  .switch{ position:relative; width:38px; height:22px; }
+  .switch input{opacity:0; width:0; height:0;}
+  .switch .track{ position:absolute; inset:0; background:var(--surface-2); border:1px solid var(--line); border-radius:999px; transition:.15s; }
+  .switch .thumb{ position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:var(--ink-faint); transition:.15s; }
+  .switch input:checked + .track{background:var(--accent-wash); border-color:var(--accent);}
+  .switch input:checked + .track .thumb{transform:translateX(16px); background:var(--accent);}
+  ol.steps{ margin:0 0 12px; padding-left:20px; font-size:.78rem; color:var(--ink-soft); line-height:1.6; }
+  ol.steps code{ background:var(--surface-2); padding:1px 5px; border-radius:5px; font-size:.72rem; }
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(15,20,28,.55); display:none;
+    align-items:center; justify-content:center; z-index:100; padding:20px;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-box{ background:var(--surface); border-radius:16px; padding:22px 20px; max-width:360px; width:100%; }
+  .modal-box h3{ font-family:var(--font-display); margin:0 0 8px; font-size:1.02rem; color:var(--ink); }
+  .modal-box p{ font-size:.84rem; color:var(--ink-soft); line-height:1.5; margin:0 0 16px; }
+  .modal-box .btn-row{flex-direction:column;}
+  .modal-box button{width:100%;}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="brand">Kakeibo Bridge<small>Cash + digital, one ledger</small></div>
+    <div class="month-total">
+      <span class="amt" id="hdrTotal">¥0</span>
+      <span class="lbl" id="hdrMonthLbl">this month</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- LOG -->
+    <section class="panel active" id="panel-log">
+      <div class="amount-display"><span class="yen">¥</span><span class="val" id="amtVal">0</span></div>
+      <div class="presets" id="presets"></div>
+      <div class="keypad" id="keypad"></div>
+      <div class="cat-grid" id="catGridLog"></div>
+      <button class="note-toggle" id="noteToggle">+ add a note</button>
+      <div class="note-row" id="noteRow"><input type="text" id="noteInput" placeholder="e.g. lunch with Aya" maxlength="60"></div>
+      <button class="date-pill" id="datePill">📅 <span id="dateLabel">Today</span></button>
+      <div class="date-inline" id="dateInline"><input type="date" id="dateInput"></div>
+      <button class="save-btn" id="saveBtn" disabled>Save cash expense</button>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section class="panel" id="panel-dash">
+      <div class="month-nav">
+        <button id="dashPrev" aria-label="Previous month">‹</button>
+        <span class="m-label" id="dashMonthLbl">—</span>
+        <button id="dashNext" aria-label="Next month">›</button>
+      </div>
+      <div class="stat-tile"><span class="amt" id="dashTotal">¥0</span><span class="lbl">total spent</span></div>
+      <div id="dashCatWrap"><h2 class="section">By category</h2><div id="dashCatBars"></div></div>
+      <div id="dashSrcWrap">
+        <h2 class="section">By payment method</h2>
+        <div class="src-bar" id="srcBar"></div>
+        <div class="src-legend" id="srcLegend"></div>
+      </div>
+    </section>
+
+    <!-- IMPORT -->
+    <section class="panel" id="panel-import">
+      <h2 class="section">Bring in what can't auto-sync</h2>
+      <p class="hint">PayPay and point-card services don't offer a live sync API. Export a CSV from each (weekly is plenty) and drop it here — rows merge in, get auto-categorized, and duplicates are skipped.</p>
+      <div id="importCards"></div>
+    </section>
+
+    <!-- HISTORY -->
+    <section class="panel" id="panel-history">
+      <div class="month-nav">
+        <button id="histPrev" aria-label="Previous month">‹</button>
+        <span class="m-label" id="histMonthLbl">—</span>
+        <button id="histNext" aria-label="Next month">›</button>
+      </div>
+      <div id="histList"></div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section class="panel" id="panel-settings">
+      <h2 class="section">Data lives on this device</h2>
+      <p class="hint">Everything is stored locally in this browser's storage — nothing leaves your phone unless you connect a backup below.</p>
+
+      <div class="settings-card">
+        <h3>OneDrive backup</h3>
+        <div class="status-row"><span class="dot" id="odDot"></span><span id="odStatus">Not connected</span></div>
+
+        <div id="odSetup">
+          <p class="hint" style="margin-bottom:10px;">One-time setup (about 10 minutes), done once per device:</p>
+          <ol class="steps">
+            <li>Go to <code>portal.azure.com</code> → <strong>Microsoft Entra ID</strong> → <strong>App registrations</strong> → <strong>New registration</strong>.</li>
+            <li>Name it anything (e.g. "Kakeibo Bridge"). Under <strong>Supported account types</strong> choose <strong>Personal Microsoft accounts only</strong>.</li>
+            <li>Under <strong>Redirect URI</strong>, pick platform <strong>Single-page application (SPA)</strong> and paste the address shown below.</li>
+            <li>After creation, go to <strong>API permissions</strong> → <strong>Add a permission</strong> → <strong>Microsoft Graph</strong> → <strong>Delegated</strong> → add <code>Files.ReadWrite.AppFolder</code>.</li>
+            <li>Copy the <strong>Application (client) ID</strong> from the Overview page and paste it below.</li>
+          </ol>
+          <span class="field-label">Redirect URI — paste this into Azure</span>
+          <div class="redirect-box" id="redirectUriBox">—</div>
+          <span class="field-label">Application (client) ID</span>
+          <input type="text" class="text-field" id="clientIdInput" placeholder="e.g. 3f8a1c2e-....">
+          <div class="btn-row">
+            <button class="btn-primary" id="saveClientIdBtn">Save</button>
+          </div>
+        </div>
+
+        <div id="odConnected" style="display:none;">
+          <div class="btn-row">
+            <button class="btn-secondary" id="backupNowBtn">Back up now</button>
+            <button class="btn-secondary" id="restoreBtn">Restore latest</button>
+            <button class="btn-danger" id="disconnectBtn">Disconnect</button>
+          </div>
+          <div class="toggle-row">
+            <span>Auto backup after each change</span>
+            <label class="switch"><input type="checkbox" id="autoBackupToggle"><span class="track"><span class="thumb"></span></span></label>
+          </div>
+        </div>
+        <div id="odConnectRow" style="display:none; margin-top:12px;">
+          <button class="btn-primary" id="connectOdBtn">Connect OneDrive</button>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <h3>Manual backup file</h3>
+        <p class="hint" style="margin-bottom:10px;">Works with or without OneDrive — a plain JSON file you can save anywhere (e.g. a Drive/OneDrive auto-upload folder).</p>
+        <div class="btn-row">
+          <button class="btn-secondary" id="exportFileBtn">Export backup file</button>
+          <label class="btn-secondary file-btn" style="display:inline-flex; align-items:center;">Import backup file<input type="file" accept=".json" id="importFileInput"></label>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <h3>On this device</h3>
+        <p class="hint" id="deviceStats" style="margin-bottom:0;">—</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs">
+    <button class="tab-btn active" data-tab="log"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>Log</button>
+    <button class="tab-btn" data-tab="dash"><svg viewBox="0 0 24 24"><path d="M4 19V10M11 19V5M18 19v-7" stroke-linecap="round" stroke-linejoin="round"/></svg>Dashboard</button>
+    <button class="tab-btn" data-tab="import"><svg viewBox="0 0 24 24"><path d="M12 3v11M8 8l4-4 4 4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" stroke-linecap="round" stroke-linejoin="round"/></svg>Import</button>
+    <button class="tab-btn" data-tab="history"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10" stroke-linecap="round"/></svg>History</button>
+    <button class="tab-btn" data-tab="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15 1.65 1.65 0 0 0 3.17 14H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</button>
+  </nav>
+
+  <div class="toast" id="toast"></div>
+
+  <div class="modal-overlay" id="reconcileModal">
+    <div class="modal-box">
+      <h3>Backup already exists</h3>
+      <p id="reconcileText">OneDrive already has a backup. What would you like to do?</p>
+      <div class="btn-row">
+        <button class="btn-primary" id="reconcileUseRemote">Use the OneDrive backup</button>
+        <button class="btn-secondary" id="reconcileKeepLocal">Keep this device's data</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var LS = 'kb_';
+  var CATEGORIES = [
+    {key:'food', label:'Food', jp:'食費', icon:'🍙', color:'#C1502E'},
+    {key:'transit', label:'Transit', jp:'交通費', icon:'🚃', color:'#26456F'},
+    {key:'daily', label:'Daily', jp:'日用品', icon:'🧴', color:'#5B8A72'},
+    {key:'medical', label:'Medical', jp:'医療', icon:'💊', color:'#A93E5C'},
+    {key:'education', label:'Study', jp:'教育', icon:'📚', color:'#6B5B95'},
+    {key:'entertainment', label:'Fun', jp:'娯楽', icon:'🎬', color:'#B0812A'},
+    {key:'utilities', label:'Utilities', jp:'光熱・通信', icon:'💡', color:'#3D7C8A'},
+    {key:'other', label:'Other', jp:'その他', icon:'✳️', color:'#8B95A5'}
+  ];
+  var SOURCES = {
+    cash:{label:'Cash', var:'--cash'}, zaim:{label:'Zaim import', var:'--zaim'},
+    paypay:{label:'PayPay', var:'--paypay'}, point:{label:'Point card', var:'--point'}
+  };
+  var IMPORT_SOURCES = [
+    {key:'zaim', title:'Zaim export', desc:'Bank, credit/debit card and Mobile Suica activity that Zaim already aggregated.'},
+    {key:'paypay', title:'PayPay export', desc:'PayPay app -> Account -> Transaction history -> export CSV.'},
+    {key:'point', title:'Point-card export', desc:'Rakuten Point / dPoint / Ponta or similar, if that service offers a history export.'}
+  ];
+  var DEFAULT_RULES = [
+    {keyword:'セブン', category:'daily'},{keyword:'ファミリーマート', category:'daily'},{keyword:'ローソン', category:'daily'},
+    {keyword:'ドラッグ', category:'medical'},{keyword:'薬局', category:'medical'},{keyword:'病院', category:'medical'},
+    {keyword:'クリニック', category:'medical'},{keyword:'スターバックス', category:'food'},{keyword:'マクドナルド', category:'food'},
+    {keyword:'吉野家', category:'food'},{keyword:'定食', category:'food'},{keyword:'JR', category:'transit'},
+    {keyword:'メトロ', category:'transit'},{keyword:'バス', category:'transit'},{keyword:'書店', category:'education'},
+    {keyword:'紀伊国屋', category:'education'},{keyword:'amazon', category:'other'},{keyword:'アマゾン', category:'other'},
+    {keyword:'電気', category:'utilities'},{keyword:'ガス', category:'utilities'},{keyword:'携帯', category:'utilities'}
+  ];
+  var GRAPH_SCOPES = ['Files.ReadWrite.AppFolder','offline_access'];
+  var BACKUP_FILENAME = 'kakeibo-backup.json';
+
+  function pad2(n){ return n<10 ? '0'+n : ''+n; }
+  function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+  function monthKeyOf(dateStr){ return dateStr.slice(0,7); }
+  function monthLabel(key){
+    var parts=key.split('-'); var y=parts[0], m=parseInt(parts[1],10);
+    var names=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    return names[m-1]+' '+y;
+  }
+  function yen(n){ return '¥'+Math.round(n).toLocaleString('en-US'); }
+  function catInfo(key){ for(var i=0;i<CATEGORIES.length;i++) if(CATEGORIES[i].key===key) return CATEGORIES[i]; return CATEGORIES[CATEGORIES.length-1]; }
+  function genId(){ return 't_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,7); }
+  function dedupKey(tx){ return [tx.source, tx.date, tx.amount, (tx.store||tx.memo||'').slice(0,30)].join('|'); }
+  function toast(msg){
+    var t=document.getElementById('toast');
+    t.textContent=msg; t.classList.add('show');
+    clearTimeout(toast._h);
+    toast._h=setTimeout(function(){t.classList.remove('show');},1800);
+  }
+
+  /* ---------------- local storage layer ---------------- */
+  function loadMonth(key){ try{ var v=JSON.parse(localStorage.getItem(LS+'m_'+key)); return (v && v.transactions) ? v : {transactions:[]}; }catch(e){ return {transactions:[]}; } }
+  function saveMonthRaw(key, data){ localStorage.setItem(LS+'m_'+key, JSON.stringify(data)); }
+  function listAllMonthKeys(){
+    var keys=[];
+    for(var i=0;i<localStorage.length;i++){
+      var k=localStorage.key(i);
+      if(k && k.indexOf(LS+'m_')===0) keys.push(k.slice((LS+'m_').length));
+    }
+    return keys.sort();
+  }
+  function loadRules(){ try{ var v=JSON.parse(localStorage.getItem(LS+'rules')); return Array.isArray(v) && v.length ? v : DEFAULT_RULES.slice(); }catch(e){ return DEFAULT_RULES.slice(); } }
+  function saveRulesRaw(rules){ localStorage.setItem(LS+'rules', JSON.stringify(rules)); }
+  function loadSettings(){ try{ return JSON.parse(localStorage.getItem(LS+'settings')) || {}; }catch(e){ return {}; } }
+  function saveSettingsRaw(s){ localStorage.setItem(LS+'settings', JSON.stringify(s)); }
+
+  function addTransactions(list){
+    var byMonth={};
+    list.forEach(function(tx){ var mk=monthKeyOf(tx.date); (byMonth[mk]=byMonth[mk]||[]).push(tx); });
+    Object.keys(byMonth).forEach(function(mk){
+      var existing=loadMonth(mk).transactions;
+      var existingKeys={}; existing.forEach(function(t){ existingKeys[t.dedupKey]=true; });
+      var toAdd=byMonth[mk].filter(function(t){ return !existingKeys[t.dedupKey]; });
+      if(toAdd.length) saveMonthRaw(mk, {transactions:existing.concat(toAdd)});
+    });
+    afterDataChange();
+  }
+  function updateTransaction(monthKey, txId, patch){
+    var existing=loadMonth(monthKey).transactions;
+    var found=false;
+    var updated=existing.map(function(t){ if(t.id===txId){ found=true; return Object.assign({}, t, patch); } return t; });
+    if(found) saveMonthRaw(monthKey, {transactions:updated});
+    afterDataChange();
+  }
+  function deleteTransaction(monthKey, txId){
+    var existing=loadMonth(monthKey).transactions;
+    saveMonthRaw(monthKey, {transactions: existing.filter(function(t){ return t.id!==txId; })});
+    afterDataChange();
+  }
+  function saveRuleFromCorrection(text, category){
+    if(!text) return;
+    var key=text.trim().slice(0,20); if(!key) return;
+    var rules=loadRules(); var found=false;
+    rules=rules.map(function(r){ if(r.keyword===key){ found=true; return {keyword:key, category:category}; } return r; });
+    if(!found) rules.push({keyword:key, category:category});
+    saveRulesRaw(rules);
+  }
+  function autoCategorize(text){
+    if(!text) return 'other';
+    var rules=loadRules(); var lower=text.toLowerCase();
+    for(var i=0;i<rules.length;i++){
+      var kw=rules[i].keyword.toLowerCase();
+      if(kw && (text.indexOf(rules[i].keyword)>-1 || lower.indexOf(kw)>-1)) return rules[i].category;
+    }
+    return 'other';
+  }
+  function buildBackupPayload(){
+    var months={}; listAllMonthKeys().forEach(function(k){ months[k]=loadMonth(k); });
+    return {version:1, exportedAt:new Date().toISOString(), months:months, rules:loadRules()};
+  }
+  function restoreFromPayload(payload){
+    if(!payload || !payload.months) throw new Error('bad payload');
+    listAllMonthKeys().forEach(function(k){ localStorage.removeItem(LS+'m_'+k); });
+    Object.keys(payload.months).forEach(function(k){ saveMonthRaw(k, payload.months[k]); });
+    if(payload.rules) saveRulesRaw(payload.rules);
+  }
+
+  /* ---------------- state ---------------- */
+  var state={
+    amount:'', category:null, note:'', date:todayStr(),
+    dashMonth: todayStr().slice(0,7), histMonth: todayStr().slice(0,7),
+    openTxId:null
+  };
+
+  function afterDataChange(){
+    refreshHeaderTotal(); renderDashboard(); renderHistory(); renderDeviceStats();
+    scheduleAutoBackup();
+  }
+
+  /* ---------------- log tab ---------------- */
+  function renderPresets(){
+    var wrap=document.getElementById('presets');
+    [300,500,800,1200].forEach(function(v){
+      var b=document.createElement('button'); b.className='preset-chip'; b.type='button'; b.textContent=yen(v);
+      b.addEventListener('click', function(){ state.amount=String(v); refreshAmount(); });
+      wrap.appendChild(b);
+    });
+  }
+  function renderKeypad(){
+    var wrap=document.getElementById('keypad');
+    ['1','2','3','4','5','6','7','8','9','00','0','⌫'].forEach(function(k){
+      var b=document.createElement('button'); b.type='button'; b.textContent=k;
+      if(k==='⌫') b.classList.add('clear');
+      b.addEventListener('click', function(){
+        if(k==='⌫') state.amount=state.amount.slice(0,-1);
+        else if(state.amount.length<7) state.amount+=k;
+        refreshAmount();
+      });
+      wrap.appendChild(b);
+    });
+  }
+  function refreshAmount(){
+    state.amount=state.amount.replace(/^0+(?=\d)/,'');
+    document.getElementById('amtVal').textContent = state.amount ? Number(state.amount).toLocaleString('en-US') : '0';
+    updateSaveEnabled();
+  }
+  function renderCatGrid(container, onPick, selectedKey){
+    container.innerHTML='';
+    CATEGORIES.forEach(function(c){
+      var b=document.createElement('button'); b.type='button'; b.className='cat-chip';
+      if(c.key===selectedKey) b.classList.add('sel');
+      b.innerHTML='<span class="ic">'+c.icon+'</span><span>'+c.label+'</span>';
+      b.addEventListener('click', function(){ onPick(c.key); });
+      container.appendChild(b);
+    });
+  }
+  function refreshLogCats(){
+    renderCatGrid(document.getElementById('catGridLog'), function(key){ state.category=key; refreshLogCats(); updateSaveEnabled(); }, state.category);
+  }
+  function updateSaveEnabled(){ document.getElementById('saveBtn').disabled = !(Number(state.amount)>0 && !!state.category); }
+  function resetLogForm(){
+    state.amount=''; state.category=null; state.note=''; state.date=todayStr();
+    document.getElementById('amtVal').textContent='0';
+    document.getElementById('noteInput').value='';
+    document.getElementById('noteRow').classList.remove('open');
+    document.getElementById('dateInline').classList.remove('open');
+    document.getElementById('dateLabel').textContent='Today';
+    document.getElementById('dateInput').value=state.date;
+    refreshLogCats(); updateSaveEnabled();
+  }
+  function wireLogTab(){
+    renderPresets(); renderKeypad(); refreshLogCats();
+    document.getElementById('noteToggle').addEventListener('click', function(){ document.getElementById('noteRow').classList.toggle('open'); });
+    document.getElementById('noteInput').addEventListener('input', function(e){ state.note=e.target.value; });
+    document.getElementById('datePill').addEventListener('click', function(){ document.getElementById('dateInline').classList.toggle('open'); });
+    var dInput=document.getElementById('dateInput'); dInput.value=state.date;
+    dInput.addEventListener('change', function(e){
+      state.date=e.target.value || todayStr();
+      document.getElementById('dateLabel').textContent = state.date===todayStr() ? 'Today' : state.date;
+    });
+    document.getElementById('saveBtn').addEventListener('click', function(){
+      var tx={ id:genId(), date:state.date, amount:Number(state.amount), category:state.category, source:'cash', memo:state.note||'', store:'', createdAt:new Date().toISOString() };
+      tx.dedupKey=dedupKey(tx)+'|'+tx.id;
+      addTransactions([tx]);
+      toast('Saved '+yen(tx.amount)+' · '+catInfo(tx.category).label);
+      resetLogForm();
+    });
+  }
+
+  /* ---------------- header ---------------- */
+  function refreshHeaderTotal(){
+    var key=todayStr().slice(0,7);
+    var list=loadMonth(key).transactions;
+    var total=list.reduce(function(s,t){ return s+Number(t.amount||0); },0);
+    document.getElementById('hdrTotal').textContent=yen(total);
+    document.getElementById('hdrMonthLbl').textContent=monthLabel(key)+' total';
+  }
+
+  /* ---------------- dashboard ---------------- */
+  function renderDashboard(){
+    document.getElementById('dashMonthLbl').textContent=monthLabel(state.dashMonth);
+    var list=loadMonth(state.dashMonth).transactions;
+    var total=list.reduce(function(s,t){ return s+Number(t.amount||0); },0);
+    document.getElementById('dashTotal').textContent=yen(total);
+
+    var byCat={}; CATEGORIES.forEach(function(c){ byCat[c.key]=0; });
+    list.forEach(function(t){ byCat[t.category]=(byCat[t.category]||0)+Number(t.amount||0); });
+    var catWrap=document.getElementById('dashCatBars'); catWrap.innerHTML='';
+    if(!list.length){
+      catWrap.innerHTML='<div class="empty-state"><span class="glyph">🧮</span>No expenses logged for '+monthLabel(state.dashMonth)+' yet.</div>';
+    } else {
+      var maxCat=Math.max.apply(null, Object.values(byCat).concat([1]));
+      CATEGORIES.slice().sort(function(a,b){ return byCat[b.key]-byCat[a.key]; }).forEach(function(c){
+        if(byCat[c.key]<=0) return;
+        var row=document.createElement('div'); row.className='bar-row';
+        row.innerHTML='<span class="cat-lbl">'+c.icon+' '+c.label+'</span>'+
+          '<span class="bar-track"><span class="bar-fill" style="width:'+(byCat[c.key]/maxCat*100)+'%;background:'+c.color+'"></span></span>'+
+          '<span class="amt">'+yen(byCat[c.key])+'</span>';
+        catWrap.appendChild(row);
+      });
+    }
+    var bySrc={cash:0,zaim:0,paypay:0,point:0};
+    list.forEach(function(t){ bySrc[t.source]=(bySrc[t.source]||0)+Number(t.amount||0); });
+    var srcBar=document.getElementById('srcBar'); srcBar.innerHTML='';
+    var srcLegend=document.getElementById('srcLegend'); srcLegend.innerHTML='';
+    if(total>0){
+      Object.keys(SOURCES).forEach(function(k){
+        var v=bySrc[k]||0; if(v<=0) return;
+        var seg=document.createElement('div'); seg.style.width=(v/total*100)+'%'; seg.style.background='var('+SOURCES[k].var+')';
+        srcBar.appendChild(seg);
+        var item=document.createElement('div'); item.className='item';
+        item.innerHTML='<span class="swatch" style="background:var('+SOURCES[k].var+')"></span>'+SOURCES[k].label+' · '+yen(v);
+        srcLegend.appendChild(item);
+      });
+    } else {
+      srcLegend.innerHTML='<span style="color:var(--ink-faint); font-size:.78rem;">Nothing to break down yet.</span>';
+    }
+  }
+  function shiftMonth(key, delta){
+    var parts=key.split('-'); var y=parseInt(parts[0],10), m=parseInt(parts[1],10)-1;
+    var d=new Date(y, m+delta, 1);
+    return d.getFullYear()+'-'+pad2(d.getMonth()+1);
+  }
+  function wireMonthNav(prevId, nextId, which){
+    document.getElementById(prevId).addEventListener('click', function(){ state[which]=shiftMonth(state[which], -1); if(which==='dashMonth') renderDashboard(); else renderHistory(); });
+    document.getElementById(nextId).addEventListener('click', function(){ state[which]=shiftMonth(state[which], 1); if(which==='dashMonth') renderDashboard(); else renderHistory(); });
+  }
+
+  /* ---------------- history ---------------- */
+  function renderHistory(){
+    document.getElementById('histMonthLbl').textContent=monthLabel(state.histMonth);
+    var list=loadMonth(state.histMonth).transactions.slice().sort(function(a,b){
+      return b.date.localeCompare(a.date) || (b.createdAt||'').localeCompare(a.createdAt||'');
+    });
+    var wrap=document.getElementById('histList'); wrap.innerHTML='';
+    if(!list.length){ wrap.innerHTML='<div class="empty-state"><span class="glyph">📭</span>No transactions for '+monthLabel(state.histMonth)+'.</div>'; return; }
+    list.forEach(function(t){
+      var ci=catInfo(t.category);
+      var row=document.createElement('div'); row.className='tx-row';
+      row.innerHTML =
+        '<span class="swatch-dot" style="background:'+ci.color+'"></span>'+
+        '<span class="mid"><span class="top">'+(t.store||t.memo||ci.label)+'</span>'+
+        '<span class="sub">'+t.date+' · '+ci.icon+' '+ci.label+' · '+(SOURCES[t.source]?SOURCES[t.source].label:t.source)+'</span></span>'+
+        '<span class="amt">'+yen(t.amount)+'</span>';
+      row.addEventListener('click', function(){ state.openTxId = state.openTxId===t.id ? null : t.id; renderHistory(); });
+      wrap.appendChild(row);
+      if(state.openTxId===t.id){
+        var edit=document.createElement('div'); edit.className='tx-edit open';
+        var catGrid=document.createElement('div'); catGrid.className='cat-grid';
+        edit.appendChild(catGrid);
+        renderCatGrid(catGrid, function(newKey){
+          updateTransaction(state.histMonth, t.id, {category:newKey});
+          saveRuleFromCorrection(t.store||t.memo, newKey);
+          toast('Re-categorized as '+catInfo(newKey).label);
+        }, t.category);
+        var del=document.createElement('button'); del.className='tx-del'; del.type='button'; del.textContent='Delete this entry';
+        del.addEventListener('click', function(){ deleteTransaction(state.histMonth, t.id); toast('Deleted'); });
+        edit.appendChild(del);
+        wrap.appendChild(edit);
+      }
+    });
+  }
+
+  /* ---------------- import tab ---------------- */
+  function parseCSV(text){
+    var rows=[], row=[], field='', inQ=false;
+    for(var i=0;i<text.length;i++){
+      var c=text[i];
+      if(inQ){ if(c==='"'){ if(text[i+1]==='"'){ field+='"'; i++; } else inQ=false; } else field+=c; }
+      else {
+        if(c==='"') inQ=true;
+        else if(c===','){ row.push(field); field=''; }
+        else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+        else if(c==='\r'){ /* skip */ }
+        else field+=c;
+      }
+    }
+    if(field.length || row.length){ row.push(field); rows.push(row); }
+    return rows.filter(function(r){ return r.length>1 || (r.length===1 && r[0].trim()!==''); });
+  }
+  function guessCol(headers, keywords){
+    for(var i=0;i<headers.length;i++){
+      var h=(headers[i]||'').toLowerCase();
+      for(var j=0;j<keywords.length;j++){ if(h.indexOf(keywords[j].toLowerCase())>-1) return i; }
+    }
+    return -1;
+  }
+  function looksGarbled(text){
+    var bad=0; for(var i=0;i<Math.min(text.length,400);i++){ if(text.charCodeAt(i)===0xFFFD) bad++; }
+    return bad>3;
+  }
+  function normalizeDate(raw){
+    if(!raw) return null;
+    raw=raw.trim(); var m;
+    if((m=raw.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/))) return m[1]+'-'+pad2(+m[2])+'-'+pad2(+m[3]);
+    if((m=raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/))) return m[3]+'-'+pad2(+m[1])+'-'+pad2(+m[2]);
+    if((m=raw.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/))) return m[1]+'-'+pad2(+m[2])+'-'+pad2(+m[3]);
+    return null;
+  }
+  function buildImportCard(spec){
+    var card=document.createElement('div'); card.className='import-card';
+    card.innerHTML =
+      '<div class="row1"><span class="src-tag" style="color:var(--'+spec.key+')">'+spec.title+'</span></div>'+
+      '<div class="desc">'+spec.desc+'</div>'+
+      '<label class="file-btn">Choose CSV file<input type="file" accept=".csv,text/csv" data-src="'+spec.key+'"></label>'+
+      '<div class="encoding-row" style="display:none;"><span>Encoding:</span><button class="sel" data-enc="utf-8">UTF-8</button><button data-enc="shift_jis">Shift-JIS</button></div>'+
+      '<div class="preview-wrap"></div>';
+    var fileInput=card.querySelector('input[type=file]');
+    var encRow=card.querySelector('.encoding-row');
+    var previewWrap=card.querySelector('.preview-wrap');
+    var currentFile=null, currentEnc='utf-8';
+
+    function loadAndPreview(){
+      if(!currentFile) return;
+      var reader=new FileReader();
+      reader.onload=function(e){
+        var text;
+        try{ text=new TextDecoder(currentEnc).decode(e.target.result); }
+        catch(err){ text=new TextDecoder('utf-8').decode(e.target.result); }
+        if(currentEnc==='utf-8' && looksGarbled(text)) encRow.style.display='flex';
+        renderPreview(text);
+      };
+      reader.readAsArrayBuffer(currentFile);
+    }
+    fileInput.addEventListener('change', function(e){ currentFile=e.target.files[0]; if(!currentFile) return; encRow.style.display='none'; loadAndPreview(); });
+    encRow.addEventListener('click', function(e){
+      var b=e.target.closest('button[data-enc]'); if(!b) return;
+      currentEnc=b.getAttribute('data-enc');
+      Array.prototype.forEach.call(encRow.querySelectorAll('button'), function(x){ x.classList.toggle('sel', x===b); });
+      loadAndPreview();
+    });
+
+    function renderPreview(text){
+      var rows=parseCSV(text);
+      if(rows.length<2){ previewWrap.innerHTML='<p class="hint">Could not find rows in that file.</p>'; return; }
+      var headers=rows[0], body=rows.slice(1).filter(function(r){ return r.some(function(v){return v && v.trim();}); });
+      var roles=['Ignore','Date','Amount','Description'];
+      var guessDate=guessCol(headers,['date','日付','年月日','取引日']);
+      var guessAmt=guessCol(headers,['amount','金額','出金','ご利用金額','利用金額','支払']);
+      var guessDesc=guessCol(headers,['store','店','内容','摘要','品目','memo','メモ','description']);
+      var colRoles=headers.map(function(h,idx){
+        if(idx===guessDate) return 'Date'; if(idx===guessAmt) return 'Amount'; if(idx===guessDesc) return 'Description'; return 'Ignore';
+      });
+      var html='<div class="wrap-scroll"><table class="map-table"><thead><tr>';
+      headers.forEach(function(h,idx){
+        html+='<th>'+(h||'(col '+(idx+1)+')')+'<br><select data-idx="'+idx+'">'+
+          roles.map(function(r){ return '<option '+(r===colRoles[idx]?'selected':'')+'>'+r+'</option>'; }).join('')+'</select></th>';
+      });
+      html+='</tr></thead><tbody>';
+      body.slice(0,4).forEach(function(r){ html+='<tr>'+headers.map(function(_,idx){ return '<td>'+(r[idx]||'')+'</td>'; }).join('')+'</tr>'; });
+      html+='</tbody></table></div><button class="confirm-btn">Import '+body.length+' rows</button>';
+      previewWrap.innerHTML=html;
+      var table=previewWrap.querySelector('table');
+      table.addEventListener('change', function(e){ if(e.target.tagName==='SELECT'){ colRoles[Number(e.target.getAttribute('data-idx'))]=e.target.value; } });
+      previewWrap.querySelector('.confirm-btn').addEventListener('click', function(btnEv){
+        var dIdx=colRoles.indexOf('Date'), aIdx=colRoles.indexOf('Amount'), sIdx=colRoles.indexOf('Description');
+        if(dIdx<0 || aIdx<0){ toast('Pick both a Date and an Amount column'); return; }
+        var txs=[];
+        body.forEach(function(r){
+          var date=normalizeDate((r[dIdx]||'').trim());
+          var rawAmt=(r[aIdx]||'').replace(/[¥,\s]/g,'').replace(/^-/,'');
+          var amt=Math.abs(parseFloat(rawAmt));
+          if(!date || !amt || isNaN(amt)) return;
+          var desc=sIdx>-1 ? (r[sIdx]||'').trim() : '';
+          var tx={ id:genId(), date:date, amount:amt, category:autoCategorize(desc), source:spec.key, memo:'', store:desc, createdAt:new Date().toISOString() };
+          tx.dedupKey=dedupKey(tx);
+          txs.push(tx);
+        });
+        if(!txs.length){ toast('No usable rows found'); return; }
+        var btn=btnEv.currentTarget; btn.disabled=true; btn.textContent='Importing…';
+        addTransactions(txs);
+        toast('Imported '+txs.length+' rows from '+spec.title);
+        previewWrap.innerHTML=''; fileInput.value='';
+      });
+    }
+    return card;
+  }
+  function wireImportTab(){
+    var wrap=document.getElementById('importCards');
+    IMPORT_SOURCES.forEach(function(spec){ wrap.appendChild(buildImportCard(spec)); });
+  }
+
+  /* ---------------- tabs ---------------- */
+  function wireTabs(){
+    var btns=document.querySelectorAll('.tab-btn');
+    btns.forEach(function(b){
+      b.addEventListener('click', function(){
+        btns.forEach(function(x){ x.classList.remove('active'); });
+        b.classList.add('active');
+        document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+        document.getElementById('panel-'+b.getAttribute('data-tab')).classList.add('active');
+        if(b.getAttribute('data-tab')==='settings') renderDeviceStats();
+      });
+    });
+  }
+
+  /* ---------------- device stats + manual export/import ---------------- */
+  function renderDeviceStats(){
+    var el=document.getElementById('deviceStats'); if(!el) return;
+    var keys=listAllMonthKeys();
+    var count=0; keys.forEach(function(k){ count+=loadMonth(k).transactions.length; });
+    el.textContent = count+' transaction'+(count===1?'':'s')+' across '+keys.length+' month'+(keys.length===1?'':'s')+' stored on this device.';
+  }
+  function wireManualBackup(){
+    document.getElementById('exportFileBtn').addEventListener('click', function(){
+      var payload=buildBackupPayload();
+      var blob=new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      var url=URL.createObjectURL(blob);
+      var a=document.createElement('a'); a.href=url; a.download='kakeibo-backup-'+todayStr()+'.json';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast('Backup file downloaded');
+    });
+    document.getElementById('importFileInput').addEventListener('change', function(e){
+      var file=e.target.files[0]; if(!file) return;
+      var reader=new FileReader();
+      reader.onload=function(ev){
+        try{
+          var payload=JSON.parse(ev.target.result);
+          restoreFromPayload(payload);
+          afterDataChange();
+          toast('Restored from file');
+        }catch(err){ toast('That file could not be read'); }
+      };
+      reader.readAsText(file);
+      e.target.value='';
+    });
+  }
+
+  /* ---------------- OneDrive / MSAL ---------------- */
+  var msalInstance=null, oneDriveAccount=null, backupTimer=null;
+
+  function redirectUri(){ return location.origin + location.pathname.replace(/index\.html$/,''); }
+
+  function odSetDot(state_){
+    var dot=document.getElementById('odDot');
+    dot.className='dot' + (state_==='on'?' on':state_==='err'?' err':' off');
+  }
+  function renderOdUI(){
+    var settings=loadSettings();
+    document.getElementById('redirectUriBox').textContent=redirectUri();
+    if(oneDriveAccount){
+      document.getElementById('odSetup').style.display='none';
+      document.getElementById('odConnected').style.display='block';
+      document.getElementById('odConnectRow').style.display='none';
+      odSetDot('on');
+      var last=settings.lastBackupAt ? new Date(settings.lastBackupAt).toLocaleString() : 'never';
+      document.getElementById('odStatus').textContent='Connected as '+oneDriveAccount.username+' · last backup '+last;
+      document.getElementById('autoBackupToggle').checked = settings.autoBackup!==false;
+    } else if(settings.clientId){
+      document.getElementById('odSetup').style.display='none';
+      document.getElementById('odConnected').style.display='none';
+      document.getElementById('odConnectRow').style.display='block';
+      odSetDot('off');
+      document.getElementById('odStatus').textContent='Client ID saved — not signed in yet';
+    } else {
+      document.getElementById('odSetup').style.display='block';
+      document.getElementById('odConnected').style.display='none';
+      document.getElementById('odConnectRow').style.display='none';
+      odSetDot('off');
+      document.getElementById('odStatus').textContent='Not connected';
+    }
+  }
+  function initMsal(){
+    var settings=loadSettings();
+    if(!settings.clientId) return null;
+    try{
+      msalInstance=new msal.PublicClientApplication({
+        auth:{ clientId:settings.clientId, authority:'https://login.microsoftonline.com/consumers', redirectUri:redirectUri() },
+        cache:{ cacheLocation:'localStorage', storeAuthStateInCookie:false }
+      });
+    }catch(e){ msalInstance=null; }
+    return msalInstance;
+  }
+  function connectOneDrive(){
+    if(!msalInstance) msalInstance=initMsal();
+    if(!msalInstance){ toast('Save your Client ID first'); return; }
+    msalInstance.loginRedirect({scopes:GRAPH_SCOPES});
+  }
+  function disconnectOneDrive(){
+    if(msalInstance && oneDriveAccount){ msalInstance.logoutRedirect({account:oneDriveAccount}); }
+    oneDriveAccount=null; renderOdUI();
+  }
+  function getGraphToken(){
+    if(!msalInstance || !oneDriveAccount) return Promise.resolve(null);
+    return msalInstance.acquireTokenSilent({scopes:GRAPH_SCOPES, account:oneDriveAccount})
+      .then(function(res){ return res.accessToken; })
+      .catch(function(){ return null; });
+  }
+  function pushBackup(){
+    return getGraphToken().then(function(token){
+      if(!token) return {ok:false, reason:'no-token'};
+      var body=JSON.stringify(buildBackupPayload());
+      return fetch('https://graph.microsoft.com/v1.0/me/drive/special/approot:/'+BACKUP_FILENAME+':/content', {
+        method:'PUT', headers:{'Authorization':'Bearer '+token, 'Content-Type':'application/json'}, body:body
+      }).then(function(resp){
+        if(!resp.ok) return {ok:false, reason:'http-'+resp.status};
+        var s=loadSettings(); s.lastBackupAt=new Date().toISOString(); saveSettingsRaw(s);
+        return {ok:true};
+      });
+    });
+  }
+  function fetchRemoteBackup(){
+    return getGraphToken().then(function(token){
+      if(!token) return {ok:false, reason:'no-token'};
+      return fetch('https://graph.microsoft.com/v1.0/me/drive/special/approot:/'+BACKUP_FILENAME+':/content', {
+        headers:{'Authorization':'Bearer '+token}
+      }).then(function(resp){
+        if(resp.status===404) return {ok:true, data:null};
+        if(!resp.ok) return {ok:false, reason:'http-'+resp.status};
+        return resp.json().then(function(data){ return {ok:true, data:data}; });
+      });
+    });
+  }
+  function scheduleAutoBackup(){
+    var settings=loadSettings();
+    if(settings.autoBackup===false) return;
+    if(!oneDriveAccount) return;
+    clearTimeout(backupTimer);
+    backupTimer=setTimeout(function(){ pushBackup().then(function(){ renderOdUI(); }); }, 4000);
+  }
+  function openReconcile(remoteData){
+    var localCount=0; listAllMonthKeys().forEach(function(k){ localCount+=loadMonth(k).transactions.length; });
+    var remoteCount=0; if(remoteData && remoteData.months) Object.keys(remoteData.months).forEach(function(k){ remoteCount+=(remoteData.months[k].transactions||[]).length; });
+    document.getElementById('reconcileText').textContent =
+      'This device has '+localCount+' transaction'+(localCount===1?'':'s')+'. OneDrive already has a backup with '+remoteCount+' transaction'+(remoteCount===1?'':'s')+'. Which should win?';
+    document.getElementById('reconcileModal').classList.add('open');
+    document.getElementById('reconcileUseRemote').onclick=function(){
+      restoreFromPayload(remoteData); afterDataChange();
+      document.getElementById('reconcileModal').classList.remove('open');
+      toast('Restored the OneDrive backup');
+    };
+    document.getElementById('reconcileKeepLocal').onclick=function(){
+      document.getElementById('reconcileModal').classList.remove('open');
+      pushBackup().then(function(){ renderOdUI(); toast('Backed up this device’s data to OneDrive'); });
+    };
+  }
+  function onOneDriveConnected(){
+    renderOdUI();
+    fetchRemoteBackup().then(function(remote){
+      if(remote.ok && remote.data){
+        var localHasData=listAllMonthKeys().some(function(k){ return loadMonth(k).transactions.length>0; });
+        if(localHasData) openReconcile(remote.data);
+        else { restoreFromPayload(remote.data); afterDataChange(); toast('Restored backup from OneDrive'); }
+      } else if(remote.ok){
+        pushBackup().then(function(){ renderOdUI(); });
+      }
+    });
+  }
+  function wireSettingsTab(){
+    document.getElementById('saveClientIdBtn').addEventListener('click', function(){
+      var v=document.getElementById('clientIdInput').value.trim();
+      if(!v){ toast('Paste your Client ID first'); return; }
+      var s=loadSettings(); s.clientId=v; saveSettingsRaw(s);
+      msalInstance=initMsal();
+      renderOdUI();
+      toast('Saved — now tap Connect OneDrive');
+    });
+    document.getElementById('connectOdBtn').addEventListener('click', connectOneDrive);
+    document.getElementById('disconnectBtn').addEventListener('click', disconnectOneDrive);
+    document.getElementById('backupNowBtn').addEventListener('click', function(){
+      toast('Backing up…');
+      pushBackup().then(function(r){ renderOdUI(); toast(r.ok ? 'Backed up to OneDrive' : 'Backup failed — try reconnecting'); });
+    });
+    document.getElementById('restoreBtn').addEventListener('click', function(){
+      fetchRemoteBackup().then(function(r){
+        if(r.ok && r.data){ restoreFromPayload(r.data); afterDataChange(); toast('Restored from OneDrive'); }
+        else toast('No backup found yet');
+      });
+    });
+    document.getElementById('autoBackupToggle').addEventListener('change', function(e){
+      var s=loadSettings(); s.autoBackup=e.target.checked; saveSettingsRaw(s);
+    });
+    wireManualBackup();
+  }
+
+  /* ---------------- boot ---------------- */
+  function boot(){
+    wireLogTab(); wireTabs(); wireImportTab(); wireSettingsTab();
+    wireMonthNav('dashPrev','dashNext','dashMonth');
+    wireMonthNav('histPrev','histNext','histMonth');
+    document.getElementById('dateInput').value=state.date;
+    updateSaveEnabled();
+    refreshHeaderTotal(); renderDashboard(); renderHistory(); renderDeviceStats(); renderOdUI();
+
+    var settings=loadSettings();
+    if(settings.clientId){
+      msalInstance=initMsal();
+      if(msalInstance){
+        msalInstance.handleRedirectPromise().then(function(res){
+          if(res && res.account){ oneDriveAccount=res.account; msalInstance.setActiveAccount(res.account); onOneDriveConnected(); }
+          else {
+            var accts=msalInstance.getAllAccounts();
+            if(accts.length){ oneDriveAccount=accts[0]; msalInstance.setActiveAccount(accts[0]); onOneDriveConnected(); }
+          }
+        }).catch(function(){ /* ignore */ });
+      }
+    }
+
+    if('serviceWorker' in navigator){
+      window.addEventListener('load', function(){ navigator.serviceWorker.register('./sw.js').catch(function(){}); });
+    }
+  }
+  document.addEventListener('DOMContentLoaded', boot);
+})();
+</script>
+</body>
+</html>
